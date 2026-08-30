@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=520" />
+  <title>Odoo Overtime Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- MAIN VIEW                                                             -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="view-main" class="view">
+      <!-- ─── Header ────────────────────────────────────────────────── -->
+      <header class="header">
+        <div class="header-left">
+          <span class="header-icon-wrap">
+            <svg class="header-icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </span>
+          <h1 class="header-title">Overtime Calculator</h1>
+        </div>
+        <button id="settings-btn" class="icon-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </header>
+
+      <!-- ─── Date Filters ──────────────────────────────────────────── -->
+      <section class="filters">
+        <div class="month-grid">
+          <button class="month-btn" data-month="0">Jan</button>
+          <button class="month-btn" data-month="1">Feb</button>
+          <button class="month-btn" data-month="2">Mar</button>
+          <button class="month-btn" data-month="3">Apr</button>
+          <button class="month-btn" data-month="4">May</button>
+          <button class="month-btn" data-month="5">Jun</button>
+          <button class="month-btn" data-month="6">Jul</button>
+          <button class="month-btn" data-month="7">Aug</button>
+          <button class="month-btn" data-month="8">Sep</button>
+          <button class="month-btn" data-month="9">Oct</button>
+          <button class="month-btn" data-month="10">Nov</button>
+          <button class="month-btn" data-month="11">Dec</button>
+        </div>
+        <div class="year-row">
+          <button id="year-prev" class="year-nav" title="Previous year">‹</button>
+          <span id="year-display" class="year-label">2026</span>
+          <button id="year-next" class="year-nav" title="Next year">›</button>
+        </div>
+        <div class="divider-row">
+          <span class="divider-line"></span>
+          <span class="divider-text">or custom range</span>
+          <span class="divider-line"></span>
+        </div>
+        <div class="range-row">
+          <div class="date-field">
+            <label for="date-from">From</label>
+            <input type="date" id="date-from" />
+          </div>
+          <div class="date-field">
+            <label for="date-to">To</label>
+            <input type="date" id="date-to" />
+          </div>
+          <button id="range-btn" class="range-apply-btn">Apply</button>
+        </div>
+      </section>
+
+      <!-- ─── Content Area ──────────────────────────────────────────── -->
+      <main class="content">
+
+        <!-- Loading State -->
+        <div id="state-loading" class="state-panel hidden">
+          <div class="spinner"></div>
+          <p class="state-text">Fetching overtime data…</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="state-error" class="state-panel hidden">
+          <span class="state-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </span>
+          <p id="error-message" class="state-text error-text"></p>
+          <button id="retry-btn" class="action-btn">Retry</button>
+          <a id="odoo-link" href="#" target="_blank" class="login-link hidden">Open Odoo to log in →</a>
+        </div>
+
+        <!-- Setup Required State -->
+        <div id="state-setup" class="state-panel hidden">
+          <span class="state-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </span>
+          <p class="state-text">Please configure your salary in settings first.</p>
+          <button id="open-settings-btn" class="action-btn">Configure Settings</button>
+        </div>
+
+        <!-- Empty State -->
+        <div id="state-empty" class="state-panel hidden">
+          <span class="state-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+              <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+            </svg>
+          </span>
+          <p class="state-text">No overtime records found for this period.</p>
+        </div>
+
+        <!-- Data State -->
+        <div id="state-data" class="hidden">
+          <!-- Summary Card -->
+          <div class="summary-card">
+            <div class="summary-header">
+              <span class="summary-label">Total Overtime Pay</span>
+              <span id="employee-name" class="employee-name"></span>
+            </div>
+            <div class="total-pay-row">
+              <div id="total-pay" class="total-pay">0.00 LYD</div>
+              <div class="rate-pill">
+                <span class="rate-pill-icon">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/><path d="M9.5 10a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 2"/></svg>
+                </span>
+                <span class="rate-pill-label">Rate:</span>
+                <span id="hourly-rate" class="rate-pill-val">0.00 LYD/hr</span>
+              </div>
+            </div>
+
+            <!-- Overtime Types 3-Column Grid -->
+            <div class="types-grid">
+              <div class="type-card holiday">
+                <div class="type-card-head">
+                  <span class="type-card-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                  </span>
+                  <span class="type-card-title">Holiday (×3)</span>
+                </div>
+                <div id="holiday-pay" class="type-card-pay">0.00 LYD</div>
+                <div id="holiday-hours" class="type-card-hours">0.00h</div>
+              </div>
+
+              <div class="type-card atwork">
+                <div class="type-card-head">
+                  <span class="type-card-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                  </span>
+                  <span class="type-card-title">At Work (×2)</span>
+                </div>
+                <div id="atwork-pay" class="type-card-pay">0.00 LYD</div>
+                <div id="atwork-hours" class="type-card-hours">0.00h</div>
+              </div>
+
+              <div class="type-card athome">
+                <div class="type-card-head">
+                  <span class="type-card-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  </span>
+                  <span class="type-card-title">At Home (×1)</span>
+                </div>
+                <div id="athome-pay" class="type-card-pay">0.00 LYD</div>
+                <div id="athome-hours" class="type-card-hours">0.00h</div>
+              </div>
+            </div>
+
+            <!-- Footer Strip: Total Hours -->
+            <div class="summary-footer-strip">
+              <span class="footer-strip-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="footer-strip-label">Total Overtime Hours:</span>
+              <span id="total-hours" class="footer-strip-val">0.00h</span>
+            </div>
+          </div>
+
+          <!-- Breakdown Table -->
+          <div class="table-container">
+            <table class="breakdown-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Hours</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Pay</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+
+          <!-- Actions -->
+          <div class="actions-row">
+            <button id="copy-btn" class="action-btn secondary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Summary
+            </button>
+            <button id="csv-btn" class="action-btn secondary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <a href="https://github.com/y0unesBelkher" target="_blank" rel="noopener noreferrer" class="footer-author-link">y0unes</a> © <span id="footer-year">2026</span>
+      </footer>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- SETTINGS VIEW (In-Popup)                                              -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="view-settings" class="view hidden">
+      <header class="header">
+        <div class="header-left">
+          <button id="settings-back-btn" class="icon-btn" title="Back to calculator">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <h1 class="header-title">Settings</h1>
+        </div>
+      </header>
+
+      <main class="content settings-content">
+        <form id="inpopup-settings-form" class="inpopup-settings-form">
+          <!-- Salary -->
+          <div class="form-group">
+            <label for="settings-salary">Monthly Salary</label>
+            <p class="form-hint">Gross monthly salary in Libyan Dinars. (Rate = Salary ÷ 176)</p>
+            <div class="input-wrapper">
+              <input type="number" id="settings-salary" placeholder="e.g. 3000" min="1" step="any" required />
+              <span class="input-suffix">LYD</span>
+            </div>
+            <p id="settings-rate-preview" class="rate-preview"></p>
+          </div>
+
+          <!-- Odoo URL -->
+          <div class="form-group">
+            <label for="settings-odoo-url">Odoo Instance URL</label>
+            <p class="form-hint">Base URL of your self-hosted Odoo instance.</p>
+            <input type="url" id="settings-odoo-url" placeholder="https://odoo.yourcompany.com" required />
+          </div>
+
+          <!-- Save Button -->
+          <button type="submit" id="settings-save-btn" class="action-btn">Save Settings</button>
+
+          <!-- Status -->
+          <div id="settings-save-status" class="save-status hidden">
+            <span class="status-icon">✓</span>
+            <span>Settings saved successfully</span>
+          </div>
+        </form>
+
+        <div class="formula-box">
+          <div class="formula-title">Calculation Formulas</div>
+          <div class="formula-line">• Hourly Rate = Salary ÷ 176 (8 hrs/day × 22 days)</div>
+          <div class="formula-line">• Holiday Overtime = Hours × Rate × 3</div>
+          <div class="formula-line">• At-Work Overtime = Hours × Rate × 2</div>
+          <div class="formula-line">• At-Home Overtime = Hours × Rate × 1</div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <a href="https://github.com/y0unesBelkher" target="_blank" rel="noopener noreferrer" class="footer-author-link">y0unes</a> © <span>2026</span>
+      </footer>
+    </div>
+
+  </div>
+
+  <script src="js/calculator.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/popup.js"></script>
+</body>
+</html>

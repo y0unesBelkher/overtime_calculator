@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculator Unit Tests</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 24px;
+    }
+    h1 { font-size: 18px; margin-bottom: 16px; color: #06b6d4; }
+    .suite { margin-bottom: 20px; }
+    .suite-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #94a3b8; }
+    .test { padding: 4px 0; font-size: 13px; }
+    .test.pass { color: #22c55e; }
+    .test.pass::before { content: "✓ "; }
+    .test.fail { color: #ef4444; }
+    .test.fail::before { content: "✗ "; }
+    .error-detail {
+      background: #1e1e2e;
+      padding: 8px 12px;
+      margin: 4px 0 4px 20px;
+      border-left: 3px solid #ef4444;
+      font-size: 12px;
+      color: #f87171;
+      white-space: pre-wrap;
+    }
+    #summary {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    #summary.all-pass { background: #052e16; color: #22c55e; border: 1px solid #22c55e40; }
+    #summary.has-fail { background: #2d0a0a; color: #ef4444; border: 1px solid #ef444440; }
+  </style>
+</head>
+<body>
+  <h1>Overtime Calculator — Unit Tests</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script src="../js/calculator.js"></script>
+  <script>
+    const calc = window.OvertimeCalculator;
+    let totalTests = 0;
+    let passedTests = 0;
+    let failedTests = 0;
+    const resultsEl = document.getElementById("results");
+
+    // ─── Test Framework ──────────────────────────────────────────────
+
+    function suite(name, fn) {
+      const div = document.createElement("div");
+      div.className = "suite";
+      div.innerHTML = `<div class="suite-title">${name}</div>`;
+      resultsEl.appendChild(div);
+      fn((testName, testFn) => {
+        totalTests++;
+        const testEl = document.createElement("div");
+        testEl.className = "test";
+        try {
+          testFn();
+          passedTests++;
+          testEl.classList.add("pass");
+          testEl.textContent = testName;
+        } catch (e) {
+          failedTests++;
+          testEl.classList.add("fail");
+          testEl.textContent = testName;
+          const detail = document.createElement("div");
+          detail.className = "error-detail";
+          detail.textContent = e.message;
+          testEl.appendChild(detail);
+        }
+        div.appendChild(testEl);
+      });
+    }
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || "Assertion failed");
+    }
+
+    function assertClose(actual, expected, tolerance, message) {
+      const diff = Math.abs(actual - expected);
+      if (diff > tolerance) {
+        throw new Error(
+          `${message || "assertClose failed"}: expected ≈${expected}, got ${actual} (diff: ${diff}, tolerance: ${tolerance})`
+        );
+      }
+    }
+
+    function assertThrows(fn, message) {
+      let threw = false;
+      try { fn(); } catch (e) { threw = true; }
+      if (!threw) throw new Error(message || "Expected function to throw");
+    }
+
+    // ─── Tests: Constants ────────────────────────────────────────────
+
+    suite("Constants", (test) => {
+      test("HOURS_PER_MONTH is 176 (8 × 22)", () => {
+        assert(calc.HOURS_PER_MONTH === 176, `Expected 176, got ${calc.HOURS_PER_MONTH}`);
+      });
+
+      test("Holiday multiplier is 3", () => {
+        assert(calc.OVERTIME_MULTIPLIERS.holidays === 3);
+      });
+
+      test("At-work multiplier is 2", () => {
+        assert(calc.OVERTIME_MULTIPLIERS.at_work === 2);
+      });
+
+      test("At-home multiplier is 1", () => {
+        assert(calc.OVERTIME_MULTIPLIERS.at_home === 1);
+      });
+    });
+
+    // ─── Tests: getHourlyRate ────────────────────────────────────────
+
+    suite("getHourlyRate()", (test) => {
+      test("3000 LYD salary → 17.0454... LYD/hr", () => {
+        const rate = calc.getHourlyRate(3000);
+        assertClose(rate, 3000 / 176, 0.0001, "Rate mismatch");
+      });
+
+      test("1760 LYD salary → exactly 10 LYD/hr", () => {
+        const rate = calc.getHourlyRate(1760);
+        assert(rate === 10, `Expected 10, got ${rate}`);
+      });
+
+      test("Throws on zero salary", () => {
+        assertThrows(() => calc.getHourlyRate(0));
+      });
+
+      test("Throws on negative salary", () => {
+        assertThrows(() => calc.getHourlyRate(-500));
+      });
+
+      test("Throws on non-number salary", () => {
+        assertThrows(() => calc.getHourlyRate("3000"));
+      });
+    });
+
+    // ─── Tests: getMultiplier ────────────────────────────────────────
+
+    suite("getMultiplier()", (test) => {
+      test("'holidays' → 3", () => {
+        assert(calc.getMultiplier("holidays") === 3);
+      });
+
+      test("'at_work' → 2", () => {
+        assert(calc.getMultiplier("at_work") === 2);
+      });
+
+      test("'at_home' → 1", () => {
+        assert(calc.getMultiplier("at_home") === 1);
+      });
+
+      test("Throws on unknown type", () => {
+        assertThrows(() => calc.getMultiplier("weekend"));
+      });
+
+      test("Throws on empty string", () => {
+        assertThrows(() => calc.getMultiplier(""));
+      });
+    });
+
+    // ─── Tests: calculateLinePay ─────────────────────────────────────
+
+    suite("calculateLinePay()", (test) => {
+      const rate = calc.getHourlyRate(3000); // ≈17.0454
+
+      test("5.333h holiday → 5.333 × rate × 3", () => {
+        const line = { overtime_hours: 5.333333, overtime_type: "holidays" };
+        const pay = calc.calculateLinePay(line, rate);
+        const expected = 5.333333 * rate * 3;
+        assertClose(pay, expected, 0.01);
+      });
+
+      test("4h at_work → 4 × rate × 2", () => {
+        const line = { overtime_hours: 4, overtime_type: "at_work" };
+        const pay = calc.calculateLinePay(line, rate);
+        const expected = 4 * rate * 2;
+        assertClose(pay, expected, 0.01);
+      });
+
+      test("3h at_home → 3 × rate × 1", () => {
+        const line = { overtime_hours: 3, overtime_type: "at_home" };
+        const pay = calc.calculateLinePay(line, rate);
+        const expected = 3 * rate * 1;
+        assertClose(pay, expected, 0.01);
+      });
+
+      test("0h overtime → 0 pay", () => {
+        const line = { overtime_hours: 0, overtime_type: "holidays" };
+        const pay = calc.calculateLinePay(line, rate);
+        assert(pay === 0, `Expected 0, got ${pay}`);
+      });
+
+      test("Throws on unknown type", () => {
+        const line = { overtime_hours: 5, overtime_type: "unknown" };
+        assertThrows(() => calc.calculateLinePay(line, rate));
+      });
+    });
+
+    // ─── Tests: calculateSummary ─────────────────────────────────────
+
+    suite("calculateSummary()", (test) => {
+      const rate = calc.getHourlyRate(1760); // exactly 10 LYD/hr
+
+      const sampleLines = [
+        { id: 1, overtime_hours: 5, overtime_type: "holidays", overtime_date: "2026-07-24", start_hour: "2026-07-24 14:00:00", end_hour: "2026-07-24 19:00:00", description: false },
+        { id: 2, overtime_hours: 4, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 16:00:00", end_hour: "2026-07-20 20:00:00", description: "Project X" },
+        { id: 3, overtime_hours: 3, overtime_type: "holidays", overtime_date: "2026-07-25", start_hour: null, end_hour: null, description: false },
+        { id: 4, overtime_hours: 2, overtime_type: "at_home", overtime_date: "2026-07-26", start_hour: null, end_hour: null, description: false },
+      ];
+
+      test("totalPay = sum of all line pays", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        // 5×10×3 + 4×10×2 + 3×10×3 + 2×10×1 = 150 + 80 + 90 + 20 = 340
+        assertClose(summary.totalPay, 340, 0.01);
+      });
+
+      test("totalHours = sum of all hours", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.totalHours, 14, 0.01);
+      });
+
+      test("holidayHours = 8 (5+3)", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.holidayHours, 8, 0.01);
+      });
+
+      test("holidayPay = 240 (8 × 10 × 3)", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.holidayPay, 240, 0.01);
+      });
+
+      test("atWorkHours = 4", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.atWorkHours, 4, 0.01);
+      });
+
+      test("atWorkPay = 80 (4 × 10 × 2)", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.atWorkPay, 80, 0.01);
+      });
+
+      test("atHomeHours = 2", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.atHomeHours, 2, 0.01);
+      });
+
+      test("atHomePay = 20 (2 × 10 × 1)", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assertClose(summary.atHomePay, 20, 0.01);
+      });
+
+      test("Entries are sorted by date ascending", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        assert(summary.entries[0].date === "2026-07-20", "First should be July 20");
+        assert(summary.entries[1].date === "2026-07-24", "Second should be July 24");
+        assert(summary.entries[2].date === "2026-07-25", "Third should be July 25");
+        assert(summary.entries[3].date === "2026-07-26", "Fourth should be July 26");
+      });
+
+      test("Entry typeLabel is correct", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        const holidayEntry = summary.entries.find(e => e.type === "holidays");
+        const workEntry = summary.entries.find(e => e.type === "at_work");
+        const homeEntry = summary.entries.find(e => e.type === "at_home");
+        assert(holidayEntry.typeLabel === "Holiday");
+        assert(workEntry.typeLabel === "At Work");
+        assert(homeEntry.typeLabel === "At Home");
+      });
+
+      test("false description becomes null", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        const entry = summary.entries.find(e => e.id === 1);
+        assert(entry.description === null, `Expected null, got ${entry.description}`);
+      });
+
+      test("String description is preserved", () => {
+        const summary = calc.calculateSummary(sampleLines, rate);
+        const entry = summary.entries.find(e => e.id === 2);
+        assert(entry.description === "Project X");
+      });
+
+      test("parentStateMap maps line IDs to states", () => {
+        const stateMap = { 1: "approved", 2: "hr_approval", 3: "draft" };
+        const summary = calc.calculateSummary(sampleLines, rate, stateMap);
+        assert(summary.entries.find(e => e.id === 1).state === "approved");
+        assert(summary.entries.find(e => e.id === 2).state === "hr_approval");
+        assert(summary.entries.find(e => e.id === 3).state === "draft");
+      });
+
+      test("Empty lines array produces zero totals", () => {
+        const summary = calc.calculateSummary([], rate);
+        assert(summary.totalPay === 0);
+        assert(summary.totalHours === 0);
+        assert(summary.entries.length === 0);
+      });
+    });
+
+    // ─── Tests: formatCurrency ───────────────────────────────────────
+
+    suite("formatCurrency()", (test) => {
+      test("1245.5 → '1,245.50 LYD'", () => {
+        const result = calc.formatCurrency(1245.5);
+        assert(result === "1,245.50 LYD", `Got: ${result}`);
+      });
+
+      test("0 → '0.00 LYD'", () => {
+        const result = calc.formatCurrency(0);
+        assert(result === "0.00 LYD", `Got: ${result}`);
+      });
+
+      test("999999.999 → '1,000,000.00 LYD'", () => {
+        const result = calc.formatCurrency(999999.999);
+        assert(result === "1,000,000.00 LYD", `Got: ${result}`);
+      });
+    });
+
+    // ─── Tests: formatHours ──────────────────────────────────────────
+
+    suite("formatHours()", (test) => {
+      test("5.333333 → '5.33h'", () => {
+        const result = calc.formatHours(5.333333);
+        assert(result === "5.33h", `Got: ${result}`);
+      });
+
+      test("4 → '4.00h'", () => {
+        const result = calc.formatHours(4);
+        assert(result === "4.00h", `Got: ${result}`);
+      });
+    });
+
+    // ─── Tests: generateCSV ──────────────────────────────────────────
+
+    suite("generateCSV()", (test) => {
+      const rate = 10;
+      const summary = calc.calculateSummary([
+        { id: 1, overtime_hours: 5, overtime_type: "holidays", overtime_date: "2026-07-24", description: false },
+        { id: 2, overtime_hours: 4, overtime_type: "at_work", overtime_date: "2026-07-20", description: false },
+      ], rate, { 1: "approved", 2: "hr_approval" });
+
+      test("CSV contains header row", () => {
+        const csv = calc.generateCSV(summary);
+        const firstLine = csv.split("\n")[0];
+        assert(firstLine.includes("Date"), "Missing Date header");
+        assert(firstLine.includes("Hours"), "Missing Hours header");
+        assert(firstLine.includes("Pay (LYD)"), "Missing Pay header");
+      });
+
+      test("CSV has correct number of data rows (entries + blank + 3 summary)", () => {
+        const csv = calc.generateCSV(summary);
+        const lines = csv.split("\n");
+        // 1 header + 2 entries + 1 blank + 3 summary = 7
+        assert(lines.length === 7, `Expected 7 lines, got ${lines.length}`);
+      });
+
+      test("CSV entry contains correct pay value", () => {
+        const csv = calc.generateCSV(summary);
+        // Holiday: 5 × 10 × 3 = 150
+        assert(csv.includes("150.00"), "Missing holiday pay of 150.00");
+        // At work: 4 × 10 × 2 = 80
+        assert(csv.includes("80.00"), "Missing at-work pay of 80.00");
+      });
+
+      test("CSV TOTAL row has correct total", () => {
+        const csv = calc.generateCSV(summary);
+        // Total: 150 + 80 = 230
+        assert(csv.includes("230.00"), "Missing total of 230.00");
+      });
+    });
+
+    // ─── Summary ─────────────────────────────────────────────────────
+
+    const summaryEl = document.getElementById("summary");
+    if (failedTests === 0) {
+      summaryEl.className = "all-pass";
+      summaryEl.textContent = `All ${totalTests} tests passed ✓`;
+    } else {
+      summaryEl.className = "has-fail";
+      summaryEl.textContent = `${failedTests} of ${totalTests} tests failed ✗`;
+    }
+  </script>
+</body>
+</html>

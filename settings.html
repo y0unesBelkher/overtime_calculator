@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overtime Calculator — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="settings-container">
+    <header class="settings-header">
+      <span class="header-icon">⏱</span>
+      <h1>Overtime Calculator Settings</h1>
+    </header>
+
+    <form id="settings-form" class="settings-form">
+      <!-- Salary -->
+      <div class="form-group">
+        <label for="salary-input">Monthly Salary</label>
+        <p class="form-hint">Your gross monthly salary in Libyan Dinars. Used to calculate the hourly rate (salary ÷ 176).</p>
+        <div class="input-wrapper">
+          <input type="number" id="salary-input" placeholder="e.g. 3000" min="1" step="any" required />
+          <span class="input-suffix">LYD</span>
+        </div>
+        <p id="rate-preview" class="rate-preview"></p>
+      </div>
+
+      <!-- Odoo URL -->
+      <div class="form-group">
+        <label for="url-input">Odoo Instance URL</label>
+        <p class="form-hint">The base URL of your self-hosted Odoo instance. Must start with https://.</p>
+        <input type="url" id="url-input" placeholder="https://odoo.yourcompany.com" required />
+      </div>
+
+      <!-- Save Button -->
+      <button type="submit" id="save-btn" class="save-btn">Save Settings</button>
+
+      <!-- Status -->
+      <div id="save-status" class="save-status hidden">
+        <span class="status-icon">✓</span>
+        <span>Settings saved successfully</span>
+      </div>
+    </form>
+
+    <footer class="settings-footer">
+      <p>Overtime Calculator v1.0.0 • <a href="https://github.com/y0unesBelkher" target="_blank" rel="noopener noreferrer" class="footer-author-link">y0unes</a> © 2026</p>
+      <p class="formula-note">Hourly rate = Salary ÷ (8 hrs × 22 days) = Salary ÷ 176</p>
+      <p class="formula-note">Holiday overtime = Hours × Rate × 3</p>
+      <p class="formula-note">At-work overtime = Hours × Rate × 2</p>
+      <p class="formula-note">At-home overtime = Hours × Rate × 1</p>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>
