@@ -27,10 +27,11 @@ A Google Chrome Extension (Manifest V3) designed to seamlessly fetch overtime re
   - Total Overtime Pay.
   - Hourly rate indicator.
   - Side-by-side cards for Holiday, At Work, and At Home totals.
+  - Dynamic **Status Breakdown** cards: automatically groups and displays Pay and Hours for each active status (Draft, Manager Approval, Manager Refused, HR Approval, HR Refused, Approved).
   - Total overtime hours.
 - **Export & Share**:
-  - **Export to CSV**: Download complete overtime reports with totals.
-  - **Copy Summary**: Formatted text summary copied directly to clipboard.
+  - **Export to CSV**: Download complete overtime reports with totals and status breakdown.
+  - **Copy Summary**: Formatted text summary copied directly to clipboard including status breakdown.
 - **In-Popup Settings & Monthly Salary Configuration**:
   - Set or change your **Monthly Salary** anytime directly inside the popup or via the options page.
   - Live preview of the calculated hourly rate (`Salary ÷ 176`).
@@ -79,7 +80,7 @@ A Google Chrome Extension (Manifest V3) designed to seamlessly fetch overtime re
    - Log into your Odoo instance in any Chrome tab.
    - Click the extension icon.
    - Select any month (e.g. **Jul**) or enter a custom date range.
-   - View your total earnings and detailed day-by-day breakdown!
+   - View your total earnings, status breakdown, and detailed day-by-day breakdown!
 
 3. **Exporting Data**:
    - Click **Export CSV** to download a spreadsheet.
@@ -103,7 +104,7 @@ overtime_calculator/
 │   └── settings.js            # Standalone settings controller
 ├── tests/
 │   ├── calculator.test.html   # Browser-based test suite
-│   └── run_tests.js           # Node.js automated test runner (42 unit tests)
+│   └── run_tests.js           # Node.js automated test runner (45 unit tests)
 ├── icons/                     # Extension icons (16px, 48px, 128px)
 └── README.md                  # Documentation
 ```
@@ -117,7 +118,7 @@ Run the test suite with Node.js:
 node tests/run_tests.js
 ```
 
-All 42 unit tests cover constants, salary rates, multiplier calculations, line pay, multi-line overtime requests (same-date entries, identical data, mixed types), summary aggregations, deterministic sorting, and CSV formatting.
+All 45 unit tests cover constants, salary rates, multiplier calculations, line pay, multi-line overtime requests (same-date entries, identical data, mixed types), status breakdown groupings, summary aggregations, deterministic sorting, and CSV formatting.
 
 ---
 

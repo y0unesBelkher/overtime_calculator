@@ -590,6 +590,115 @@ body {
   color: #10b981;
 }
 
+/* ─── Status Breakdown (Dynamic) ─────────────────────────────────────────── */
+
+.status-breakdown-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.status-breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.status-breakdown-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.status-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+}
+
+.status-card {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid #64748b;
+  transition: transform var(--transition);
+}
+
+.status-card:hover {
+  transform: translateY(-1px);
+}
+
+.status-card.draft {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.status-card.manager_approval {
+  border-left-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.status-card.manager_refused {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.status-card.hr_approval {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.status-card.hr_refused {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.status-card.approved,
+.status-card.confirmed {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.status-card.rejected {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.status-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.status-card-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-card-hours {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.status-card-pay {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 /* ─── Breakdown Table ─────────────────────────────────────────────────────── */
 
 .table-container {

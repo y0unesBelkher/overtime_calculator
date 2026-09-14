@@ -60,6 +60,8 @@
   const $athomePay = document.getElementById("athome-pay");
   const $athomeHours = document.getElementById("athome-hours");
   const $totalHours = document.getElementById("total-hours");
+  const $statusBreakdownSection = document.getElementById("status-breakdown-section");
+  const $statusBreakdownGrid = document.getElementById("status-breakdown-grid");
   const $tableBody = document.getElementById("table-body");
   const $employeeName = document.getElementById("employee-name");
   const $errorMessage = document.getElementById("error-message");
@@ -174,6 +176,9 @@
   }
 
   function formatStateLabel(state) {
+    if (calc && calc.getStateLabel) {
+      return calc.getStateLabel(state);
+    }
     const labels = {
       draft: "Draft",
       manager_approval: "Manager Approval",
@@ -245,6 +250,41 @@
       $employeeName.title = employeeName;
     } else {
       $employeeName.textContent = "";
+    }
+
+    // Render dynamic status breakdown (only statuses present in period)
+    if (summary.stateBreakdown && Object.keys(summary.stateBreakdown).length > 0) {
+      $statusBreakdownGrid.innerHTML = "";
+      Object.values(summary.stateBreakdown).forEach((st) => {
+        const card = document.createElement("div");
+        card.className = `status-card ${st.state}`;
+
+        const head = document.createElement("div");
+        head.className = "status-card-head";
+
+        const name = document.createElement("span");
+        name.className = "status-card-name";
+        name.textContent = st.label;
+
+        const hours = document.createElement("span");
+        hours.className = "status-card-hours";
+        hours.textContent = calc.formatHours(st.hours);
+
+        head.appendChild(name);
+        head.appendChild(hours);
+
+        const pay = document.createElement("div");
+        pay.className = "status-card-pay";
+        pay.textContent = calc.formatCurrency(st.pay);
+
+        card.appendChild(head);
+        card.appendChild(pay);
+
+        $statusBreakdownGrid.appendChild(card);
+      });
+      $statusBreakdownSection.classList.remove("hidden");
+    } else {
+      $statusBreakdownSection.classList.add("hidden");
     }
   }
 
@@ -441,7 +481,7 @@
     }
   });
 
-  // Copy to clipboard
+    // Copy to clipboard
   $copyBtn.addEventListener("click", () => {
     if (!lastSummary) return;
 
@@ -457,6 +497,14 @@
     if (lastSummary.atHomeHours > 0) {
       lines.push(`At Home (×1):  ${calc.formatCurrency(lastSummary.atHomePay)} (${calc.formatHours(lastSummary.atHomeHours)})`);
     }
+    if (lastSummary.stateBreakdown && Object.keys(lastSummary.stateBreakdown).length > 0) {
+      lines.push("");
+      lines.push("Status Breakdown:");
+      Object.values(lastSummary.stateBreakdown).forEach((st) => {
+        lines.push(`  ${st.label}: ${calc.formatCurrency(st.pay)} (${calc.formatHours(st.hours)})`);
+      });
+    }
+    lines.push("");
     lines.push(`TOTAL:         ${calc.formatCurrency(lastSummary.totalPay)} (${calc.formatHours(lastSummary.totalHours)})`);
 
     navigator.clipboard.writeText(lines.join("\n")).then(() => {

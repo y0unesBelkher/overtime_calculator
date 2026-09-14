@@ -64,6 +64,31 @@ function calculateLinePay(line, hourlyRate) {
   return line.overtime_hours * hourlyRate * multiplier;
 }
 
+const STATE_LABELS = {
+  draft: "Draft",
+  manager_approval: "Manager Approval",
+  manager_refused: "Manager Refused",
+  hr_approval: "HR Approval",
+  hr_refused: "HR Refused",
+  approved: "Approved",
+  confirmed: "Confirmed",
+  rejected: "Rejected",
+};
+
+/**
+ * Get human-readable label for a state code.
+ *
+ * @param {string|null} state
+ * @returns {string}
+ */
+function getStateLabel(state) {
+  if (!state) return "—";
+  return (
+    STATE_LABELS[state] ||
+    state.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 /**
  * Calculate a full summary for a collection of overtime lines.
  *
@@ -84,6 +109,8 @@ function calculateLinePay(line, hourlyRate) {
  *   holidayPay: number,
  *   atWorkHours: number,
  *   atWorkPay: number,
+ *   atHomeHours: number,
+ *   atHomePay: number,
  *   hourlyRate: number,
  *   entries: Array<{
  *     id: number,
@@ -97,6 +124,13 @@ function calculateLinePay(line, hourlyRate) {
  *     startHour: string|null,
  *     endHour: string|null,
  *     description: string|null
+ *   }>,
+ *   stateBreakdown: Record<string, {
+ *     state: string,
+ *     label: string,
+ *     hours: number,
+ *     pay: number,
+ *     count: number
  *   }>
  * }}
  */
@@ -162,6 +196,24 @@ function calculateSummary(lines, hourlyRate, parentStateMap = {}) {
     return (a.id || 0) - (b.id || 0);
   });
 
+  // Group by status (only for states present in lines)
+  const stateBreakdown = {};
+  entries.forEach((entry) => {
+    const s = entry.state || "unknown";
+    if (!stateBreakdown[s]) {
+      stateBreakdown[s] = {
+        state: s,
+        label: getStateLabel(s === "unknown" ? null : s),
+        hours: 0,
+        pay: 0,
+        count: 0,
+      };
+    }
+    stateBreakdown[s].hours += entry.hours;
+    stateBreakdown[s].pay += entry.pay;
+    stateBreakdown[s].count += 1;
+  });
+
   return {
     totalPay,
     totalHours,
@@ -173,6 +225,7 @@ function calculateSummary(lines, hourlyRate, parentStateMap = {}) {
     atHomePay,
     hourlyRate,
     entries,
+    stateBreakdown,
   };
 }
 
@@ -236,6 +289,15 @@ function generateCSV(summary) {
     rows.push(["At Home Total", summary.atHomeHours.toFixed(2), "At Home", "x1", "", summary.atHomePay.toFixed(2), ""]);
   }
 
+  // Add status breakdown rows
+  if (summary.stateBreakdown && Object.keys(summary.stateBreakdown).length > 0) {
+    rows.push([]);
+    rows.push(["STATUS BREAKDOWN", "Hours", "", "", "", "Pay (LYD)", ""]);
+    Object.values(summary.stateBreakdown).forEach((st) => {
+      rows.push([st.label, st.hours.toFixed(2), "", "", "", st.pay.toFixed(2), st.state]);
+    });
+  }
+
   const csvContent = [
     headers.join(","),
     ...rows.map((row) =>
@@ -254,6 +316,8 @@ if (typeof window !== "undefined") {
     WORK_DAYS_PER_MONTH,
     HOURS_PER_MONTH,
     OVERTIME_MULTIPLIERS,
+    STATE_LABELS,
+    getStateLabel,
     getHourlyRate,
     getMultiplier,
     calculateLinePay,

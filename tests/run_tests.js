@@ -175,12 +175,85 @@ suite("Multiple lines per overtime & Same-date entries", (test) => {
       { id: 602, overtime_hours: 2, overtime_type: "at_work", overtime_date: "2026-07-24" },
     ], rate, { 601: "approved", 602: "approved" });
     const csv = calc.generateCSV(summary);
-    const lines = csv.split("\n");
-    // 1 header + 2 data rows + 1 blank + 3 summary rows = 7 lines
-    assert(lines.length === 7);
     assert(csv.includes("90.00"), "Holiday line pay (3 * 10 * 3 = 90)");
     assert(csv.includes("40.00"), "At-work line pay (2 * 10 * 2 = 40)");
     assert(csv.includes("130.00"), "Total pay (90 + 40 = 130)");
+  });
+});
+
+suite("Status Breakdown & State Grouping", (test) => {
+  const rate = 10; // 10 LYD/hr
+
+  test("getStateLabel() returns correct labels", () => {
+    assert(calc.getStateLabel("draft") === "Draft");
+    assert(calc.getStateLabel("manager_approval") === "Manager Approval");
+    assert(calc.getStateLabel("manager_refused") === "Manager Refused");
+    assert(calc.getStateLabel("hr_approval") === "HR Approval");
+    assert(calc.getStateLabel("hr_refused") === "HR Refused");
+    assert(calc.getStateLabel("approved") === "Approved");
+    assert(calc.getStateLabel("confirmed") === "Confirmed");
+    assert(calc.getStateLabel("rejected") === "Rejected");
+    assert(calc.getStateLabel(null) === "—");
+    assert(calc.getStateLabel("custom_state") === "Custom State");
+  });
+
+  test("stateBreakdown groups hours and pay accurately per status", () => {
+    const lines = [
+      { id: 1, overtime_hours: 2, overtime_type: "holidays", overtime_date: "2026-08-01" }, // 2 * 10 * 3 = 60
+      { id: 2, overtime_hours: 3, overtime_type: "at_work", overtime_date: "2026-08-02" },  // 3 * 10 * 2 = 60
+      { id: 3, overtime_hours: 4, overtime_type: "at_home", overtime_date: "2026-08-03" },  // 4 * 10 * 1 = 40
+      { id: 4, overtime_hours: 5, overtime_type: "at_work", overtime_date: "2026-08-04" },  // 5 * 10 * 2 = 100
+      { id: 5, overtime_hours: 1, overtime_type: "holidays", overtime_date: "2026-08-05" }, // 1 * 10 * 3 = 30
+    ];
+    const stateMap = {
+      1: "draft",
+      2: "draft",
+      3: "manager_approval",
+      4: "hr_approval",
+      5: "manager_refused",
+    };
+
+    const s = calc.calculateSummary(lines, rate, stateMap);
+    const bd = s.stateBreakdown;
+
+    // draft: 2h (60) + 3h (60) = 5h, 120 LYD
+    assertClose(bd["draft"].hours, 5, 0.001);
+    assertClose(bd["draft"].pay, 120, 0.001);
+    assert(bd["draft"].count === 2);
+    assert(bd["draft"].label === "Draft");
+
+    // manager_approval: 4h, 40 LYD
+    assertClose(bd["manager_approval"].hours, 4, 0.001);
+    assertClose(bd["manager_approval"].pay, 40, 0.001);
+    assert(bd["manager_approval"].count === 1);
+
+    // hr_approval: 5h, 100 LYD
+    assertClose(bd["hr_approval"].hours, 5, 0.001);
+    assertClose(bd["hr_approval"].pay, 100, 0.001);
+    assert(bd["hr_approval"].count === 1);
+
+    // manager_refused: 1h, 30 LYD
+    assertClose(bd["manager_refused"].hours, 1, 0.001);
+    assertClose(bd["manager_refused"].pay, 30, 0.001);
+    assert(bd["manager_refused"].count === 1);
+
+    // States not in lines must NOT be present
+    assert(bd["approved"] === undefined, "Unrepresented state 'approved' should not exist");
+    assert(bd["hr_refused"] === undefined, "Unrepresented state 'hr_refused' should not exist");
+  });
+
+  test("CSV includes status breakdown section", () => {
+    const lines = [
+      { id: 1, overtime_hours: 2, overtime_type: "holidays", overtime_date: "2026-08-01" },
+      { id: 2, overtime_hours: 3, overtime_type: "at_work", overtime_date: "2026-08-02" },
+    ];
+    const stateMap = { 1: "hr_approval", 2: "hr_refused" };
+    const s = calc.calculateSummary(lines, rate, stateMap);
+    const csv = calc.generateCSV(s);
+
+    assert(csv.includes("STATUS BREAKDOWN"), "CSV must include status breakdown header");
+    assert(csv.includes("HR Approval"), "CSV must include HR Approval");
+    assert(csv.includes("HR Refused"), "CSV must include HR Refused");
   });
 });
 
