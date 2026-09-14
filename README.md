@@ -103,7 +103,7 @@ overtime_calculator/
 │   └── settings.js            # Standalone settings controller
 ├── tests/
 │   ├── calculator.test.html   # Browser-based test suite
-│   └── run_tests.js           # Node.js automated test runner (36 unit tests)
+│   └── run_tests.js           # Node.js automated test runner (42 unit tests)
 ├── icons/                     # Extension icons (16px, 48px, 128px)
 └── README.md                  # Documentation
 ```
@@ -117,7 +117,7 @@ Run the test suite with Node.js:
 node tests/run_tests.js
 ```
 
-All 36 unit tests cover constants, salary rates, multiplier calculations, line pay, summary aggregations, sorting, and CSV formatting.
+All 42 unit tests cover constants, salary rates, multiplier calculations, line pay, multi-line overtime requests (same-date entries, identical data, mixed types), summary aggregations, deterministic sorting, and CSV formatting.
 
 ---
 

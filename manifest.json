@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Odoo Overtime Calculator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Calculate overtime pay from your Odoo HR overtime records. Supports holiday and at-work multipliers with date filtering.",
   "permissions": [
     "storage",

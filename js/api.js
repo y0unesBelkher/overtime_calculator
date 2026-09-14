@@ -98,10 +98,13 @@ class OdooRpcError extends Error {
 const SEARCH_READ_BATCH_SIZE = 80;
 
 /**
- * Fetch ALL overtime parent records within a date range, with pagination.
+ * Fetch overtime parent records for the current logged-in employee.
  *
  * Uses `/web/dataset/search_read` on `hr.masarat.overtime`.
- * Paginates in batches of 80 until all records are fetched.
+ * Odoo's record rule automatically enforces that regular users only receive
+ * their own employee records. We search with a wide window around the target
+ * dates so that overtime worked in a month is not missed if the request was
+ * submitted in a different month (e.g. submitted in September for August work).
  *
  * @param {string} baseUrl
  * @param {string} startDate — ISO date "YYYY-MM-DD"
@@ -116,17 +119,14 @@ const SEARCH_READ_BATCH_SIZE = 80;
  * }>>}
  */
 async function fetchOvertimeRecords(baseUrl, startDate, endDate) {
-  // Use "< next_day" instead of "<= endDate" to include the full last day.
-  // Odoo stores request_date as a datetime, so records at e.g. "2026-07-31 14:00:00"
-  // would be excluded by "<= 2026-07-31". Using "<" with the next day avoids this.
-  // We use Date.UTC to avoid any local timezone shifting.
-  const [ey, em, ed] = endDate.split("-").map(Number);
-  const nextDayUtc = new Date(Date.UTC(ey, em - 1, ed + 1));
-  const endExclusive = `${nextDayUtc.getUTCFullYear()}-${String(nextDayUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(nextDayUtc.getUTCDate()).padStart(2, "0")}`;
+  const [sYear] = startDate.split("-").map(Number);
+  const [eYear] = endDate.split("-").map(Number);
+  const windowStart = `${sYear - 1}-10-01`;
+  const windowEnd = `${eYear + 1}-04-01`;
 
   const domain = [
-    ["request_date", ">=", startDate],
-    ["request_date", "<=", endExclusive],
+    ["request_date", ">=", windowStart],
+    ["request_date", "<=", windowEnd],
   ];
   const fields = [
     "employee_id",
@@ -168,7 +168,9 @@ async function fetchOvertimeRecords(baseUrl, startDate, endDate) {
       // Merge overtime_line_ids back into allRecords
       const detailMap = {};
       parentDetails.forEach((d) => {
-        detailMap[d.id] = d.overtime_line_ids;
+        detailMap[d.id] = Array.isArray(d.overtime_line_ids)
+          ? d.overtime_line_ids
+          : [];
       });
       allRecords.forEach((r) => {
         if (!Array.isArray(r.overtime_line_ids)) {
@@ -252,7 +254,10 @@ async function fetchOvertimeLines(baseUrl, lineIds) {
 /**
  * Fetch and assemble all overtime data for a date range.
  *
- * Returns the raw overtime lines plus a map from line ID → parent state.
+ * 1. Fetches parent overtime records for the logged-in user (enforcing Odoo employee security).
+ * 2. Collects all line IDs across the user's overtime requests.
+ * 3. Batch-reads line details.
+ * 4. Filters lines precisely by actual `overtime_date` (work date).
  *
  * @param {string} baseUrl
  * @param {string} startDate — "YYYY-MM-DD"
@@ -264,39 +269,45 @@ async function fetchOvertimeLines(baseUrl, lineIds) {
  * }>}
  */
 async function getOvertimeData(baseUrl, startDate, endDate) {
-  // Step 1: Fetch parent records (with pagination)
-  // Note: server filters on request_date (when request was submitted),
-  // which may differ from overtime_date (when work was done).
-  // We fetch with a slightly wider range and filter lines precisely below.
+  // Step 1: Fetch parent records for the user
   const records = await fetchOvertimeRecords(baseUrl, startDate, endDate);
 
   if (records.length === 0) {
     return { lines: [], stateMap: {}, employeeName: null };
   }
 
-  // Collect all line IDs and build state map
+  // Step 2: Collect all line IDs and build state map
   const allLineIds = [];
   const lineToState = {};
   let employeeName = null;
 
   records.forEach((record) => {
     if (record.employee_id && Array.isArray(record.employee_id)) {
-      employeeName = record.employee_id[1]; // use last seen
+      employeeName = record.employee_id[1];
     }
-    const lineIds = record.overtime_line_ids || [];
+    const lineIds = Array.isArray(record.overtime_line_ids)
+      ? record.overtime_line_ids
+      : [];
     lineIds.forEach((lineId) => {
       allLineIds.push(lineId);
       lineToState[lineId] = record.state;
     });
   });
 
-  // Step 2: Fetch all line details in one batch
+  if (allLineIds.length === 0) {
+    return { lines: [], stateMap: {}, employeeName };
+  }
+
+  // Step 3: Fetch all line details in one batch
   const lines = await fetchOvertimeLines(baseUrl, allLineIds);
 
-  // Step 3: Filter lines by their actual overtime_date (the date work was done)
-  // This is the precise filter — request_date on the parent may be a day or two off.
+  // Step 4: Filter lines by their actual overtime_date (the date work was done)
   const filteredLines = lines.filter((line) => {
-    return line.overtime_date >= startDate && line.overtime_date <= endDate;
+    return (
+      line.overtime_date &&
+      line.overtime_date >= startDate &&
+      line.overtime_date <= endDate
+    );
   });
 
   return {

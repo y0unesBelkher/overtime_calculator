@@ -307,6 +307,93 @@
       });
     });
 
+    // ─── Tests: Multiple Lines & Same Date ───────────────────────────
+
+    suite("Multiple lines per overtime & Same-date entries", (test) => {
+      const rate = 10; // 10 LYD/hr
+
+      test("Multiple lines with exact same date and same type calculate correctly", () => {
+        const multiLinesSameDate = [
+          { id: 101, overtime_hours: 3.5, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 08:00:00", end_hour: "2026-07-20 11:30:00" },
+          { id: 102, overtime_hours: 4.5, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 13:00:00", end_hour: "2026-07-20 17:30:00" },
+        ];
+        const s = calc.calculateSummary(multiLinesSameDate, rate);
+        assertClose(s.totalHours, 8.0, 0.001, "totalHours mismatch");
+        assertClose(s.atWorkHours, 8.0, 0.001, "atWorkHours mismatch");
+        assertClose(s.totalPay, 160.0, 0.001, "totalPay mismatch (8 * 10 * 2)");
+        assertClose(s.atWorkPay, 160.0, 0.001, "atWorkPay mismatch");
+        assert(s.entries.length === 2, "Both lines must be preserved in entries");
+      });
+
+      test("Multiple lines with same date but different overtime types", () => {
+        const mixedTypesSameDate = [
+          { id: 201, overtime_hours: 2, overtime_type: "holidays", overtime_date: "2026-07-24", start_hour: "2026-07-24 10:00:00" },
+          { id: 202, overtime_hours: 3, overtime_type: "at_work", overtime_date: "2026-07-24", start_hour: "2026-07-24 13:00:00" },
+          { id: 203, overtime_hours: 1.5, overtime_type: "at_home", overtime_date: "2026-07-24", start_hour: "2026-07-24 19:00:00" },
+        ];
+        const s = calc.calculateSummary(mixedTypesSameDate, rate);
+        assertClose(s.totalHours, 6.5, 0.001);
+        assertClose(s.holidayHours, 2.0, 0.001);
+        assertClose(s.holidayPay, 60.0, 0.001);
+        assertClose(s.atWorkHours, 3.0, 0.001);
+        assertClose(s.atWorkPay, 60.0, 0.001);
+        assertClose(s.atHomeHours, 1.5, 0.001);
+        assertClose(s.atHomePay, 15.0, 0.001);
+        assertClose(s.totalPay, 135.0, 0.001);
+        assert(s.entries.length === 3);
+      });
+
+      test("Multiple lines with identical data are all preserved and calculated", () => {
+        const duplicateDataLines = [
+          { id: 301, overtime_hours: 4, overtime_type: "at_work", overtime_date: "2026-07-15" },
+          { id: 302, overtime_hours: 4, overtime_type: "at_work", overtime_date: "2026-07-15" },
+        ];
+        const s = calc.calculateSummary(duplicateDataLines, rate);
+        assertClose(s.totalHours, 8.0, 0.001);
+        assertClose(s.totalPay, 160.0, 0.001);
+        assert(s.entries.length === 2);
+        assert(s.entries[0].id === 301 && s.entries[1].id === 302);
+      });
+
+      test("State mapping properly propagates to all lines from the same parent overtime", () => {
+        const linesFromSameParent = [
+          { id: 401, overtime_hours: 2, overtime_type: "holidays", overtime_date: "2026-07-01" },
+          { id: 402, overtime_hours: 3, overtime_type: "at_work", overtime_date: "2026-07-02" },
+          { id: 403, overtime_hours: 4, overtime_type: "holidays", overtime_date: "2026-07-03" },
+        ];
+        const parentStateMap = { 401: "approved", 402: "approved", 403: "approved" };
+        const s = calc.calculateSummary(linesFromSameParent, rate, parentStateMap);
+        assert(s.entries.every(e => e.state === "approved"), "All lines must reflect parent approved state");
+      });
+
+      test("Deterministic sorting by date, then startHour, then id", () => {
+        const unsortedLines = [
+          { id: 503, overtime_hours: 1, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 18:00:00" },
+          { id: 501, overtime_hours: 2, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 09:00:00" },
+          { id: 502, overtime_hours: 3, overtime_type: "at_work", overtime_date: "2026-07-20", start_hour: "2026-07-20 14:00:00" },
+          { id: 500, overtime_hours: 4, overtime_type: "at_work", overtime_date: "2026-07-10", start_hour: "2026-07-10 10:00:00" },
+        ];
+        const s = calc.calculateSummary(unsortedLines, rate);
+        assert(s.entries[0].id === 500, "First should be July 10");
+        assert(s.entries[1].id === 501, "Second should be July 20 at 09:00");
+        assert(s.entries[2].id === 502, "Third should be July 20 at 14:00");
+        assert(s.entries[3].id === 503, "Fourth should be July 20 at 18:00");
+      });
+
+      test("CSV export correctly includes multiple lines with same date", () => {
+        const summary = calc.calculateSummary([
+          { id: 601, overtime_hours: 3, overtime_type: "holidays", overtime_date: "2026-07-24" },
+          { id: 602, overtime_hours: 2, overtime_type: "at_work", overtime_date: "2026-07-24" },
+        ], rate, { 601: "approved", 602: "approved" });
+        const csv = calc.generateCSV(summary);
+        const lines = csv.split("\n");
+        assert(lines.length === 7);
+        assert(csv.includes("90.00"), "Holiday line pay (3 * 10 * 3 = 90)");
+        assert(csv.includes("40.00"), "At-work line pay (2 * 10 * 2 = 40)");
+        assert(csv.includes("130.00"), "Total pay (90 + 40 = 130)");
+      });
+    });
+
     // ─── Tests: formatCurrency ───────────────────────────────────────
 
     suite("formatCurrency()", (test) => {

@@ -151,8 +151,16 @@ function calculateSummary(lines, hourlyRate, parentStateMap = {}) {
     };
   });
 
-  // Sort entries by date (ascending)
-  entries.sort((a, b) => a.date.localeCompare(b.date));
+  // Sort entries by date (ascending), then startHour (ascending), then id (ascending)
+  entries.sort((a, b) => {
+    const dateComp = (a.date || "").localeCompare(b.date || "");
+    if (dateComp !== 0) return dateComp;
+    if (a.startHour && b.startHour) {
+      const timeComp = a.startHour.localeCompare(b.startHour);
+      if (timeComp !== 0) return timeComp;
+    }
+    return (a.id || 0) - (b.id || 0);
+  });
 
   return {
     totalPay,
